@@ -1,0 +1,45 @@
+# --- Python Virtual Environments & Packages ---
+.venv/
+venv/
+env/
+build/
+dist/
+target/
+*.egg-info/
+
+# --- Python Bytecode & Caches ---
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+
+# --- IDEs & Local Editors ---
+.idea/
+.env
+
+# --- Local Testing Scripts ---
+test.py
+system_prompt.md
+
+# --- Machine Learning Models & Weights (Large Files) ---
+seraph_engine/model.pt
+*.bin
+*.gguf
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.onnx
+*.tar
+*.tar.gz
+*.zip
+
+# --- Tokenizers & Configs ---
+config.json
+tokenizer.json
+tokenizer_config.json
+special_tokens_map.json
+vocab.txt
+merges.txt
