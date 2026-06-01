@@ -1,0 +1,4 @@
+[env]
+LIBTORCH = "/usr/lib/python3.14/site-packages/torch"
+LD_LIBRARY_PATH = { value = "/usr/lib/python3.14/site-packages/torch/lib", relative = false }
+LIBTORCH_USE_PYTORCH = "1"

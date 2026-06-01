@@ -1,0 +1,13 @@
+[package]
+name = "seraph_engine"
+version = "0.1.0"
+edition = "2021"
+authors = ["Cammy"]
+description = "High-performance async LLM inference backend for SeraphByte"
+
+[dependencies]
+candle-core = { git = "https://github.com/huggingface/candle.git", features = ["cuda"] }
+candle-transformers = { git = "https://github.com/huggingface/candle.git" }
+candle-nn = { git = "https://github.com/huggingface/candle.git", features = ["cuda"] } #
+tokenizers = "0.23.1"
+dirs = "5.0"
