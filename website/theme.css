@@ -1,0 +1,88 @@
+/* Custom scrollbar tracking for the chat output window */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 3px;
+}
+
+/* Status Badges */
+.status-connected {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background-color: rgba(6, 78, 59, 0.5); /* bg-emerald-950/50 */
+    color: #34d399; /* text-emerald-400 */
+    border: 1px solid rgba(6, 95, 70, 0.5); /* border-emerald-900/50 */
+}
+
+.status-disconnected {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background-color: rgba(127, 29, 29, 0.5); /* bg-red-950/50 */
+    color: #f87171; /* text-red-400 */
+    border: 1px solid rgba(153, 27, 27, 0.5); /* border-red-900/50 */
+}
+
+/* Base Avatars */
+.avatar-system {
+    height: 2rem;
+    width: 2rem;
+    border-radius: 0.5rem;
+    background-color: #4f46e5; /* bg-indigo-600 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.avatar-user {
+    height: 2rem;
+    width: 2rem;
+    border-radius: 0.5rem;
+    background-color: #059669; /* bg-emerald-600 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+    order: 2;
+}
+
+/* Base Message Bubbles */
+.bubble-system {
+    background-color: #111827; /* bg-gray-900 */
+    border: 1px solid #1f2937; /* border-gray-800 */
+    border-radius: 1rem;
+    padding: 0.75rem 1rem;
+    color: #d1d5db; /* text-gray-300 */
+    font-size: 0.875rem;
+}
+
+.bubble-user {
+    background-color: rgba(30, 27, 75, 0.4); /* bg-indigo-950/40 */
+    border: 1px solid rgba(49, 46, 129, 0.5); /* border-indigo-900/50 */
+    border-radius: 1rem;
+    padding: 0.75rem 1rem;
+    color: #e5e7eb; /* text-gray-200 */
+    font-size: 0.875rem;
+    max-w: 36rem; /* max-w-xl */
+}

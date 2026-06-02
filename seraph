@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Define colors for beautiful, structured log outputs
+INTERFACE_COLOR='\033[0;36m' # Cyan
+ENGINE_COLOR='\033[0;35m'    # Magenta
+NO_COLOR='\033[0m'
+
+echo -e "${INTERFACE_COLOR}[SERAPH::SYSTEM] Initializing unified boot sequence...${NO_COLOR}"
+
+# 1. Spin up the lightweight Python web server for the front-end dashboard in the background
+echo -e "${INTERFACE_COLOR}[SERAPH::GUI] Launching web server dashboard on http://localhost:3000...${NO_COLOR}"
+cd website || { echo "Error: website directory not found"; exit 1; }
+python3 -m http.server 3000 > /dev/null 2>&1 &
+WEB_SERVER_PID=$!
+cd ..
+
+# 2. Trap termination signals (like Ctrl+C) to ensure both processes close gracefully
+cleanup() {
+    echo -e "\n${INTERFACE_COLOR}[SERAPH::SYSTEM] Shutting down ecosystem processes gracefully...${NO_COLOR}"
+    kill $WEB_SERVER_PID 2>/dev/null
+    exit 0
+}
+trap cleanup SIGINT SIGTERM
+
+# 3. Boot your compiled heavy GPU inference engine directly in the foreground
+echo -e "${ENGINE_COLOR}[SERAPH::ENGINE] Booting hardware-accelerated core...${NO_COLOR}"
+cd seraph_engine || { echo "Error: seraph_engine directory not found"; exit 1; }
+
+# 'cargo run' takes control of the terminal window so you can interact with your GGUF boot menus
+cargo run
+
+# If the engine closes or crashes, trigger the global cleanup sequence automatically
+cleanup
