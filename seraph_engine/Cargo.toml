@@ -8,6 +8,11 @@ description = "High-performance async LLM inference backend for SeraphByte"
 [dependencies]
 candle-core = { git = "https://github.com/huggingface/candle.git", features = ["cuda"] }
 candle-transformers = { git = "https://github.com/huggingface/candle.git" }
-candle-nn = { git = "https://github.com/huggingface/candle.git", features = ["cuda"] } #
+candle-nn = { git = "https://github.com/huggingface/candle.git", features = ["cuda"] }
 tokenizers = "0.23.1"
 dirs = "5.0"
+
+# Async & WebSocket Networking Stack
+tokio = { version = "1.38", features = ["full"] }
+tokio-tungstenite = "0.23"
+futures-util = "0.3"

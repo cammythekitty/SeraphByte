@@ -10,14 +10,29 @@ use tokenizers::Tokenizer;
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
+use std::thread;
+
+// Network imports
+use futures_util::{SinkExt, StreamExt};
+use tokio::net::TcpListener;
+use tokio_tungstenite::accept_async;
+use tokio_tungstenite::tungstenite::protocol::Message;
 
 // Track the active model architecture on the GPU
 enum ActiveModel {
-    Llama(quantized_llama::ModelWeights), // Handles both Llama and Mistral seamlessly
-    Qwen(quantized_qwen2::ModelWeights),   // Handles Qwen and DeepSeek-Distills
+    Llama(quantized_llama::ModelWeights),
+    Qwen(quantized_qwen2::ModelWeights),
 }
 
-fn main() {
+// Commands passed from the WebSocket network stack into the heavy GPU thread
+struct InferenceJob {
+    prompt: String,
+    tx_tokens: mpsc::Sender<String>, // Channel to stream tokens back to the specific network client
+}
+
+#[tokio::main]
+async fn main() {
     println!("--- Initializing Auto-Detect GGUF Seraph Engine ---");
 
     // 1. Setup GPU Acceleration
@@ -50,7 +65,6 @@ fn main() {
 
     if gguf_models.is_empty() {
         println!("\nError: No .gguf models found in {:?}", models_dir);
-        println!("Please drop your .gguf files into that directory and restart.");
         return;
     }
 
@@ -89,7 +103,6 @@ fn main() {
             .expect("Failed to build Qwen architecture layout.");
         ActiveModel::Qwen(weights)
     } else {
-        // This structural loader natively processes both Mistral and Llama architecture profiles
         println!("Configuring matrix layers for Llama/Mistral architecture layout...");
         let weights = quantized_llama::ModelWeights::from_gguf(model_content, &mut file, &device)
             .expect("Failed to build Llama/Mistral architecture layout.");
@@ -100,12 +113,11 @@ fn main() {
     let tokenizer = Tokenizer::from_file("tokenizer.json")
         .expect("Failed to load tokenizer.json");
 
-    // NEW: Dynamically load the system prompt from a local Markdown file (.md)
+    // Load System Prompt from Markdown file
     let system_prompt_path = Path::new("system_prompt.md");
     if !system_prompt_path.exists() {
         let default_prompt = "# System Instructions\nYou are Seraph, a precise and advanced AI assistant.";
-        fs::write(system_prompt_path, default_prompt)
-            .expect("Failed to create default system_prompt.md");
+        fs::write(system_prompt_path, default_prompt).expect("Failed to create default system_prompt.md");
     }
     let system_prompt = fs::read_to_string(system_prompt_path)
         .expect("Failed to read system_prompt.md")
@@ -113,72 +125,102 @@ fn main() {
         .to_string();
 
     println!("Loaded system prompt configuration from system_prompt.md");
-    println!("GGUF Model loaded and initialized into GPU context. Ready for real text generation!");
 
-    // 8. Generation configs
-    let sample_len = 25000; // High token limit for long generations
-    let mut logits_processor = LogitsProcessor::new(299792458, Some(0.2), None);
+    // Create the cross-thread communication tunnel between the GPU loop and Network loop
+    let (tx_job, rx_job) = mpsc::channel::<InferenceJob>();
 
-    // 9. Interactive Prompt Processing Loop
-    loop {
-        print!("\nEnter Prompt: ");
-        io::stdout().flush().unwrap();
+    // 8. Spawn the Heavy GPU Processing Loop inside its own dedicated hardware worker thread
+    thread::spawn(move || {
+        println!("GPU Hardware Thread worker active and bound successfully.");
+        let sample_len = 250;
+        let mut logits_processor = LogitsProcessor::new(299792458, Some(0.7), None);
 
-        let mut user_input = String::new();
-        io::stdin().read_line(&mut user_input).expect("Failed to read line");
+        // Keep the thread alive, waiting for prompts over the internal channel
+        while let Ok(job) = rx_job.recv() {
+            println!("GPU executing incoming prompt request...");
+            
+            let formatted_templated_prompt = format!(
+                "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
+                system_prompt,
+                job.prompt
+            );
+
+            let encoding = tokenizer.encode(formatted_templated_prompt, true).expect("Encoding failed");
+            let mut tokens = encoding.get_ids().to_vec();
+
+            // Autoregressive token iteration pass
+            for i in 0..sample_len {
+                let context_size = if i == 0 { tokens.len() } else { 1 };
+                let start_pos = tokens.len() - context_size;
+                
+                let input_slice = &tokens[start_pos..];
+                let input_tensor = Tensor::new(input_slice, &device).unwrap().unsqueeze(0).unwrap();
+                
+                let logits = match &mut active_model {
+                    ActiveModel::Qwen(m) => m.forward(&input_tensor, start_pos).unwrap(),
+                    ActiveModel::Llama(m) => m.forward(&input_tensor, start_pos).unwrap(),
+                };
+                
+                let logits = logits.squeeze(0).unwrap();
+                let next_token = logits_processor.sample(&logits).unwrap();
+                
+                if next_token == 151645 || next_token == 2 {
+                    break;
+                }
+                
+                tokens.push(next_token);
+
+                if let Ok(token_text) = tokenizer.decode(&[next_token], true) {
+                    let clean_text = token_text.replace(" ", " ").replace("<0x0A>", "\n");
+                    
+                    // Drop token straight into the cross-thread network line. 
+                    // Break early if the client has disconnected.
+                    if job.tx_tokens.send(clean_text).is_err() {
+                        break; 
+                    }
+                }
+            }
+            println!("GPU Inference job complete.");
+        }
+    });
+
+    // 9. Boot Non-Standard WebSockets Server to handle network orchestration
+    let port = "8543"; // Safe, non-standard port out of collision range
+    let addr = format!("127.0.0.1:{}", port);
+    let listener = TcpListener::bind(&addr).await.expect("Failed to bind to safe address");
+    println!("Engine Socket Gateway listening live on: ws://{}", addr);
+
+    // Accept multiple network connections asynchronously without disrupting the GPU
+    while let Ok((stream, _)) = listener.accept().await {
+        let tx_job_clone = tx_job.clone();
         
-        let trimmed_input = user_input.trim();
-        if trimmed_input.eq_ignore_ascii_case("exit") {
-            println!("Shutting down engine gracefully.");
-            break;
-        }
-        if trimmed_input.is_empty() {
-            continue;
-        }
+        tokio::spawn(async move {
+            let ws_stream = accept_async(stream).await;
+            if let Ok(mut ws) = ws_stream {
+                println!("New system control socket handshake complete.");
 
-        // Apply ChatML formatting utilizing the prompt loaded from the markdown file
-        let formatted_templated_prompt = format!(
-            "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
-            system_prompt,
-            trimmed_input
-        );
+                while let Some(Ok(msg)) = ws.next().await {
+                    if let Message::Text(prompt_text) = msg {
+                        let (tx_tokens, rx_tokens) = mpsc::channel::<String>();
 
-        let encoding = tokenizer.encode(formatted_templated_prompt, true).expect("Encoding failed");
-        let mut tokens = encoding.get_ids().to_vec();
-
-        print!("Generated Text: ");
-        io::stdout().flush().unwrap();
-
-        // Autoregressive token generation loop
-        for i in 0..sample_len {
-            let context_size = if i == 0 { tokens.len() } else { 1 };
-            let start_pos = tokens.len() - context_size;
-            
-            let input_slice = &tokens[start_pos..];
-            let input_tensor = Tensor::new(input_slice, &device).unwrap().unsqueeze(0).unwrap();
-            
-            // Route execution seamlessly depending on the variant chosen
-            let logits = match &mut active_model {
-                ActiveModel::Qwen(m) => m.forward(&input_tensor, start_pos).unwrap(),
-                ActiveModel::Llama(m) => m.forward(&input_tensor, start_pos).unwrap(),
-            };
-            
-            let logits = logits.squeeze(0).unwrap();
-            let next_token = logits_processor.sample(&logits).unwrap();
-            
-            // Stop early if the model hits an End-Of-Sequence token (Qwen: 151645, Llama/Mistral: 2)
-            if next_token == 151645 || next_token == 2 {
-                break;
+                        // Package the job description and dispatch it straight into the GPU pipeline
+                        let job = InferenceJob {
+                            prompt: prompt_text,
+                            tx_tokens,
+                        };
+                        
+                        if tx_job_clone.send(job).is_ok() {
+                            // Listen for raw streamed tokens from the GPU thread and bounce them right over the WebSocket
+                            while let Ok(token) = rx_tokens.recv() {
+                                if ws.send(Message::Text(token)).await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                println!("System control socket client disconnected.");
             }
-            
-            tokens.push(next_token);
-
-            if let Ok(token_text) = tokenizer.decode(&[next_token], true) {
-                let clean_text = token_text.replace(" ", " ").replace("<0x0A>", "\n");
-                print!("{}", clean_text);
-                io::stdout().flush().unwrap();
-            }
-        }
-        println!();
+        });
     }
 }
