@@ -135,15 +135,26 @@ async fn main() {
         let sample_len = 250;
         let mut logits_processor = LogitsProcessor::new(299792458, Some(0.7), None);
 
-        // Keep the thread alive, waiting for prompts over the internal channel
         while let Ok(job) = rx_job.recv() {
             println!("GPU executing incoming prompt request...");
-            
-            let formatted_templated_prompt = format!(
-                "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
-                system_prompt,
-                job.prompt
-            );
+    
+            // Dynamically choose the exact template token wrapper based on the active model layout
+            let formatted_templated_prompt = match &active_model {
+                ActiveModel::Qwen(_) => {
+                    // Native ChatML for Qwen / DeepSeek-R1-Distill
+                    format!(
+                        "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
+                        system_prompt, job.prompt
+                    )
+                },
+                ActiveModel::Llama(_) => {
+                    // Standard instruction layout for Llama / Mistral
+                    format!(
+                        "<s>[INST] <<SYS>>\n{}\n<</SYS>>\n\n{} [/INST]",
+                        system_prompt, job.prompt
+                    )
+                }
+            };
 
             let encoding = tokenizer.encode(formatted_templated_prompt, true).expect("Encoding failed");
             let mut tokens = encoding.get_ids().to_vec();
