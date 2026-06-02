@@ -7,7 +7,7 @@ pub fn generate<M: LanguageModel>(model: &M, tokenizer: &Tokenizer, prompt: &str
     let mut current_tokens = encoding.get_ids().iter().map(|&id| id as i64).collect::<Vec<i64>>();
     
     // Set how many tokens maximum you want the LLM to generate per prompt
-    let max_new_tokens = 12; 
+    let max_new_tokens = 500; 
 
     for _ in 0..max_new_tokens {
         // 1. Move the currently accumulated tokens onto the runtime device
