@@ -7,13 +7,13 @@ const promptForm = document.getElementById('prompt-form');
 const sendBtn = document.getElementById('send-btn');
 const statusBadge = document.getElementById('status-badge');
 const ctxLabel = document.getElementById('ctx-label');
+const modelLine = document.getElementById('model-line');
 
-// Configure marked engine for clean, standard Github-Flavored Markdown parsing
 marked.setOptions({ breaks: true, gfm: true });
 
-let currentAssistantBubble = null; // Target .markdown-body DOM reference
-let currentRawText = '';           // Running text stream accumulator
-let typingIndicator = null;        // Active typing indicator row
+let currentAssistantBubble = null; 
+let currentRawText = '';           
+let typingIndicator = null;        
 let totalTokens = 0;
 
 function nowTime() {
@@ -21,18 +21,16 @@ function nowTime() {
 }
 
 function estimateTokens(text) {
-    // Standard local metric approximation: ~4 characters per hardware token
     return Math.round(text.length / 4);
 }
 
 function updateCtx(text) {
     totalTokens += estimateTokens(text);
     if (ctxLabel) {
-        ctxLabel.textContent = `ctx: ${totalTokens.toLocaleString()} / 8192 tok`;
+        ctxLabel.textContent = `ctx: ${totalTokens.toLocaleString()} / 8,192 tok`;
     }
 }
 
-// Initialize connection network layout to the local Rust server
 function connectEngine() {
     socket = new WebSocket(socketUrl);
 
@@ -40,34 +38,30 @@ function connectEngine() {
         statusBadge.textContent = "Connected";
         statusBadge.className = "status-connected";
         sendBtn.removeAttribute('disabled');
+        if (modelLine) modelLine.textContent = "active_model · ws://127.0.0.1:8543";
     };
 
     socket.onmessage = (event) => {
-        // First token event: remove loading dots and spawn real bubble container
         if (!currentAssistantBubble) {
             removeTypingIndicator();
             currentRawText = '';
             currentAssistantBubble = createAssistantBubble();
         }
 
-        // Accumulate raw string tokens from the websocket channel
         currentRawText += event.data;
 
-        // Dynamic Stream Guard: If backtick strings are odd, append a temporary closing block 
-        // to keep the browser DOM from shattering while the model is typing code arrays
+        // Code block structural wrapper intercept guard
         let workingText = currentRawText;
         const backtickCount = (workingText.match(/```/g) || []).length;
         if (backtickCount % 2 !== 0) {
             workingText += '\n```'; 
         }
 
-        // Safely parse and render into clean HTML layouts
         currentAssistantBubble.innerHTML = marked.parse(workingText);
         chatLog.scrollTop = chatLog.scrollHeight;
     };
 
     socket.onclose = () => {
-        // Network teardown: finalize remaining stream fragments safely
         if (currentAssistantBubble && currentRawText) {
             finalizeAssistantBubble(currentAssistantBubble, currentRawText);
             currentAssistantBubble = null;
@@ -77,13 +71,12 @@ function connectEngine() {
         statusBadge.textContent = "Disconnected";
         statusBadge.className = "status-disconnected";
         sendBtn.setAttribute('disabled', 'true');
+        if (modelLine) modelLine.textContent = "offline · disconnected";
 
-        // Retry connection sequence loops every 3 seconds if backend drops
         setTimeout(connectEngine, 3000);
     };
 }
 
-// Build system message rows featuring the new layout designs
 function createAssistantBubble() {
     const wrapper = document.createElement('div');
     wrapper.className = 'flex gap-3 max-w-2xl msg-row-system msg-fade-in';
@@ -103,7 +96,7 @@ function createAssistantBubble() {
     return body;
 }
 
-// Finalizes chat text arrays with timestamps and metrics metrics
+// Emits timestamp + dynamic exact token validation counts per response chunk
 function finalizeAssistantBubble(bubbleEl, rawText) {
     updateCtx(rawText);
     const meta = document.createElement('div');
@@ -112,7 +105,6 @@ function finalizeAssistantBubble(bubbleEl, rawText) {
     bubbleEl.parentElement.appendChild(meta);
 }
 
-// Renders the moving structural waiting animation bubble
 function showTypingIndicator() {
     typingIndicator = document.createElement('div');
     typingIndicator.className = 'flex gap-3 max-w-2xl msg-row-system msg-fade-in';
@@ -138,7 +130,6 @@ function removeTypingIndicator() {
     }
 }
 
-// User text bubble construction factory
 function createUserBubble(text) {
     const wrapper = document.createElement('div');
     wrapper.className = 'flex gap-3 justify-end msg-fade-in';
@@ -167,7 +158,6 @@ function createUserBubble(text) {
     updateCtx(text);
 }
 
-// Intercept form submissions
 promptForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = promptInput.value.trim();
@@ -176,7 +166,6 @@ promptForm.addEventListener('submit', (e) => {
     createUserBubble(text);
     socket.send(text);
 
-    // Clean streaming registers and flip typing indicator live
     currentAssistantBubble = null;
     currentRawText = '';
     showTypingIndicator();
@@ -185,13 +174,11 @@ promptForm.addEventListener('submit', (e) => {
     promptInput.style.height = 'auto';
 });
 
-// Dynamic field adjustment as text lengths scale
 promptInput.addEventListener('input', function () {
     this.style.height = 'auto';
     this.style.height = this.scrollHeight + 'px';
 });
 
-// Handle line splits cleanly
 promptInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -199,5 +186,4 @@ promptInput.addEventListener('keydown', function (e) {
     }
 });
 
-// Fire up event networking pipeline
 connectEngine();
