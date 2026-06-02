@@ -3,67 +3,142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seraph Engine Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <title>Seraph Engine</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <link rel="stylesheet" href="theme.css?v=remodel_final">
+    <link rel="stylesheet" href="theme.css?v=gen8">
 </head>
-<body class="bg-gray-950 text-gray-100 font-sans min-h-screen flex flex-col">
+<body>
 
-    <header class="border-b border-gray-900 bg-gray-900/40 py-2.5 px-4 backdrop-blur">
-        <div class="max-w-4xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-2.5">
-                <div class="h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></div>
+    <!-- Header -->
+    <header class="seraph-header">
+        <div class="seraph-header-inner">
+            <div class="hdr-left">
+                <div class="status-pulse" id="conn-pulse"></div>
                 <div>
-                    <h1 class="text-sm font-bold tracking-widest text-indigo-400 font-mono leading-tight">SERAPH::ENGINE</h1>
-                    <p id="model-line" class="text-[10px] text-gray-500 font-mono tracking-wide">fetching metadata · ws://127.0.0.1:8543</p>
+                    <h1 class="brand-title">SERAPH::ENGINE</h1>
+                    <p id="model-line" class="brand-subtitle">fetching metadata · ws://127.0.0.1:8543</p>
                 </div>
             </div>
-            <div id="status-badge" class="status-disconnected">
-                Disconnected
+            <div class="hdr-right">
+                <select id="model-select" class="model-select">
+                    <option value="">loading models...</option>
+                </select>
+                <div id="status-badge" class="status-disconnected">Disconnected</div>
             </div>
         </div>
     </header>
 
-    <main class="flex-1 max-w-4xl w-full mx-auto flex flex-col p-4 overflow-hidden">
-        <div id="chat-log" class="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
-            <div class="flex gap-3 max-w-2xl msg-row-system">
-                <div class="avatar-system">S</div>
-                <div>
-                    <div class="bubble-system markdown-body">
-                        System environment restored. Web interface bound to core workspace pipeline loops. Engage the hardware cluster.
+    <!-- Main layout: sidebar + chat -->
+    <div class="seraph-layout">
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <nav class="sidebar-tabs">
+                <button class="stab active" data-panel="memory" onclick="switchPanel(this,'memory')">
+                    <span class="stab-icon">⬡</span>
+                    <span class="stab-label">Memory</span>
+                </button>
+                <button class="stab" data-panel="session" onclick="switchPanel(this,'session')">
+                    <span class="stab-icon">◈</span>
+                    <span class="stab-label">Session</span>
+                </button>
+                <button class="stab" data-panel="config" onclick="switchPanel(this,'config')">
+                    <span class="stab-icon">◎</span>
+                    <span class="stab-label">Config</span>
+                </button>
+            </nav>
+
+            <!-- Memory panel -->
+            <div class="panel-content" id="panel-memory">
+                <div class="panel-section-title">Pinned Memory</div>
+                <div id="memory-list" class="memory-list"></div>
+                <button class="mem-add-btn" onclick="promptAddMemory()">+ pin new memory</button>
+                <div class="panel-section-title" style="margin-top:14px">Session Notes</div>
+                <div id="session-notes" class="memory-list"></div>
+            </div>
+
+            <!-- Session panel -->
+            <div class="panel-content" id="panel-session" style="display:none">
+                <div class="panel-section-title">Session Stats</div>
+                <div class="stat-grid">
+                    <div class="stat-row"><span class="stat-label">Messages</span><span class="stat-val" id="stat-messages">0</span></div>
+                    <div class="stat-row"><span class="stat-label">Tokens used</span><span class="stat-val" id="stat-tokens">0</span></div>
+                    <div class="stat-row"><span class="stat-label">Ctx window</span><span class="stat-val" id="stat-ctx-pct">0%</span></div>
+                    <div class="stat-row"><span class="stat-label">Model</span><span class="stat-val" id="stat-model">—</span></div>
+                    <div class="stat-row"><span class="stat-label">Connected</span><span class="stat-val" id="stat-conn" style="color:#f87171">NO</span></div>
+                    <div class="stat-row"><span class="stat-label">Latency</span><span class="stat-val" id="stat-latency">—</span></div>
+                </div>
+            </div>
+
+            <!-- Config panel -->
+            <div class="panel-content" id="panel-config" style="display:none">
+                <div class="panel-section-title">Generation</div>
+                <div class="stat-grid">
+                    <div class="stat-row">
+                        <span class="stat-label">Temp</span>
+                        <input type="range" min="0" max="2" step="0.05" value="0.7" id="cfg-temp" class="cfg-range" oninput="document.getElementById('cfg-temp-val').textContent=parseFloat(this.value).toFixed(2)">
+                        <span class="stat-val" id="cfg-temp-val">0.70</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Top-P</span>
+                        <input type="range" min="0" max="1" step="0.05" value="0.9" id="cfg-topp" class="cfg-range" oninput="document.getElementById('cfg-topp-val').textContent=parseFloat(this.value).toFixed(2)">
+                        <span class="stat-val" id="cfg-topp-val">0.90</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Max tok</span>
+                        <input type="range" min="128" max="8192" step="128" value="2048" id="cfg-maxtok" class="cfg-range" oninput="document.getElementById('cfg-maxtok-val').textContent=this.value">
+                        <span class="stat-val" id="cfg-maxtok-val">2048</span>
+                    </div>
+                </div>
+                <div class="panel-section-title" style="margin-top:14px">System Prompt</div>
+                <textarea id="system-prompt-input" class="sys-prompt-textarea" placeholder="Enter system prompt..."></textarea>
+            </div>
+
+            <button class="collapse-btn" id="collapse-btn" onclick="toggleSidebar()">
+                <span id="collapse-arrow">◁</span>
+                <span id="collapse-label">collapse</span>
+            </button>
+        </aside>
+
+        <!-- Chat area -->
+        <main class="chat-main">
+            <div id="chat-log" class="chat-log custom-scrollbar">
+                <div class="msg-row-system msg-fade-in">
+                    <div class="avatar-system">S</div>
+                    <div class="msg-body">
+                        <div class="bubble-system markdown-body">
+                            System environment restored. Web interface bound to core workspace pipeline loops. Engage the hardware cluster.
+                        </div>
+                        <div class="msg-meta">system</div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="mt-2">
-            <form id="prompt-form" class="relative flex items-center bg-gray-900 border border-gray-800 rounded-2xl focus-within:border-indigo-500/50 transition shadow-2xl">
-                <textarea
-                    id="prompt-input"
-                    rows="1"
-                    placeholder="Message Seraph..."
-                    class="w-full bg-transparent resize-none py-3.5 pl-4 pr-16 focus:outline-none text-gray-200 text-sm max-h-32 overflow-y-auto"
-                    required
-                ></textarea>
-                <button
-                    type="submit"
-                    id="send-btn"
-                    disabled
-                    class="absolute right-3 p-1.5 rounded-xl bg-gray-800 hover:bg-indigo-600 disabled:opacity-30 disabled:hover:bg-gray-800 text-white transition cursor-pointer"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
-                    </svg>
-                </button>
-            </form>
-            
-            <div class="context-bar mt-1 px-1 flex justify-end">
-                <span id="ctx-label">ctx: 0 / 8,192 tok</span>
+            <div class="input-area">
+                <form id="prompt-form" class="input-form">
+                    <textarea
+                        id="prompt-input"
+                        rows="1"
+                        placeholder="Message Seraph..."
+                        class="input-textarea"
+                        required
+                    ></textarea>
+                    <button type="submit" id="send-btn" disabled class="send-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="14" height="14">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
+                        </svg>
+                    </button>
+                </form>
+                <div class="ctx-footer">
+                    <span id="ctx-label" class="ctx-label">ctx: 0 / 8,192 tok</span>
+                    <div class="ctx-bar-track">
+                        <div class="ctx-bar-fill" id="ctx-bar-fill"></div>
+                    </div>
+                </div>
             </div>
-        </div>
-    </main>
+        </main>
+    </div>
 
-    <script src="app.js?v=remodel_final"></script>
+    <script src="app.js?v=gen8"></script>
 </body>
 </html>

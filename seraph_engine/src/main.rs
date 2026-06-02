@@ -132,7 +132,7 @@ async fn main() {
     // 8. Spawn the Heavy GPU Processing Loop inside its own dedicated hardware worker thread
     thread::spawn(move || {
         println!("GPU Hardware Thread worker active and bound successfully.");
-        let sample_len = 250;
+        let sample_len = 25000;
         let mut logits_processor = LogitsProcessor::new(299792458, Some(0.7), None);
 
         // Keep the thread alive, waiting for prompts over the internal channel
@@ -164,9 +164,11 @@ async fn main() {
                 let logits = logits.squeeze(0).unwrap();
                 let next_token = logits_processor.sample(&logits).unwrap();
                 
-                if next_token == 151645 || next_token == 2 {
-                    break;
-                }
+                let is_eos = match &active_model {
+                    ActiveModel::Qwen(_) => next_token == 151645 || next_token == 151643,
+                    ActiveModel::Llama(_) => next_token == 2 || next_token == 1,
+                };
+                if is_eos { break; }
                 
                 tokens.push(next_token);
 
