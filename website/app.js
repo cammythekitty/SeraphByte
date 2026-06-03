@@ -20,6 +20,15 @@ const statModel       = document.getElementById('stat-model');
 const statConn        = document.getElementById('stat-conn');
 const statLatency     = document.getElementById('stat-latency');
 
+// Config panel refs
+const cfgTemp         = document.getElementById('cfg-temp');
+const cfgTempVal      = document.getElementById('cfg-temp-val');
+const cfgTopp         = document.getElementById('cfg-topp');
+const cfgToppVal      = document.getElementById('cfg-topp-val');
+const cfgMaxtok       = document.getElementById('cfg-maxtok');
+const cfgMaxtokVal    = document.getElementById('cfg-maxtok-val');
+const sysPromptInput  = document.getElementById('system-prompt-input');
+
 marked.setOptions({ breaks: true, gfm: true });
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -30,10 +39,26 @@ let typingIndicator        = null;
 let totalTokens            = 0;
 let messageCount           = 0;
 let lastSendTime           = 0;
+let activeModelName        = '—';
+
+// ─── Config getters ───────────────────────────────────────────────────────────
+// Always read live from the sliders / textarea at send time
+function getConfig() {
+    return {
+        temperature: parseFloat(cfgTemp.value),
+        top_p:       parseFloat(cfgTopp.value),
+        max_tokens:  parseInt(cfgMaxtok.value, 10),
+        system_prompt: sysPromptInput.value.trim() || null,
+    };
+}
+
+// Keep slider labels in sync (oninput handlers on the elements still fire,
+// but we also wire them here for safety)
+cfgTemp.addEventListener('input',   () => cfgTempVal.textContent   = parseFloat(cfgTemp.value).toFixed(2));
+cfgTopp.addEventListener('input',   () => cfgToppVal.textContent   = parseFloat(cfgTopp.value).toFixed(2));
+cfgMaxtok.addEventListener('input', () => cfgMaxtokVal.textContent = cfgMaxtok.value);
 
 // ─── MemoryStore ─────────────────────────────────────────────────────────────
-// Lightweight localStorage-backed store. Future: swap save/load for
-// websocket RPCs to your Rust backend (e.g. ws MEMORY_SET / MEMORY_GET frames).
 const MemoryStore = (() => {
     const KEY = 'seraph_memory_v1';
 
@@ -59,8 +84,6 @@ const MemoryStore = (() => {
             save(load().filter(e => e.id !== id));
         },
         clear() { save([]); },
-        // Future hook: call this to broadcast memory to Rust backend
-        // async sync(wsSocket) { wsSocket.send(JSON.stringify({ type:'MEMORY_SYNC', payload: load() })); }
     };
 })();
 
@@ -120,7 +143,6 @@ function updateCtx(text) {
     if (ctxBarFill) ctxBarFill.style.width = pct + '%';
     if (statTokens) statTokens.textContent = totalTokens.toLocaleString();
     if (statCtxPct) statCtxPct.textContent = Math.round(pct) + '%';
-    // Warn visually when context is getting full
     if (ctxBarFill) {
         ctxBarFill.style.background = pct > 85 ? '#f87171' : pct > 60 ? '#fbbf24' : '';
     }
@@ -131,6 +153,20 @@ function updateMessageCount() {
     if (statMessages) statMessages.textContent = messageCount;
 }
 
+function setModelDisplay(name) {
+    activeModelName = name;
+    // Header subtitle
+    modelLine.textContent = `${name} · ws://127.0.0.1:8543`;
+    // Session stats panel
+    if (statModel) statModel.textContent = name;
+    // Populate the model dropdown with the single active model
+    modelSelect.innerHTML = '';
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    modelSelect.appendChild(opt);
+}
+
 // ─── WebSocket ───────────────────────────────────────────────────────────────
 function connectEngine() {
     socket = new WebSocket(SOCKET_URL);
@@ -139,17 +175,28 @@ function connectEngine() {
         statusBadge.textContent = 'Connected';
         statusBadge.className   = 'status-connected';
         sendBtn.removeAttribute('disabled');
-        modelLine.textContent   = `active_model · ${SOCKET_URL}`;
         if (statConn) { statConn.textContent = 'YES'; statConn.style.color = '#34d399'; }
-
-        // Future: request model list from backend
-        // socket.send(JSON.stringify({ type: 'LIST_MODELS' }));
     };
 
     socket.onmessage = (event) => {
-        // Future: handle JSON frames (model list, memory sync ACK, etc.)
-        // if (event.data[0] === '{') { handleControlFrame(JSON.parse(event.data)); return; }
+        const raw = event.data;
 
+        // Check if this is a JSON control frame from the backend
+        if (raw.trim().startsWith('{')) {
+            try {
+                const frame = JSON.parse(raw);
+                if (frame.type === 'model_info' && frame.model) {
+                    setModelDisplay(frame.model);
+                    return;
+                }
+                // Unknown control frame — ignore
+                return;
+            } catch (_) {
+                // Not valid JSON, fall through to treat as token stream
+            }
+        }
+
+        // --- Token stream ---
         if (!currentAssistantBubble) {
             removeTypingIndicator();
             if (lastSendTime) {
@@ -161,8 +208,9 @@ function connectEngine() {
             currentAssistantBubble = createAssistantBubble();
         }
 
-        currentRawText += event.data;
+        currentRawText += raw;
 
+        // Patch unclosed fences while streaming so markdown doesn't break mid-block
         let workingText = currentRawText;
         if ((workingText.match(/```/g) || []).length % 2 !== 0) {
             workingText += '\n```';
@@ -276,8 +324,8 @@ function createUserBubble(text) {
     avatar.textContent = 'U';
 
     const col = document.createElement('div');
-
     col.className = 'msg-body msg-body-right';
+
     const body = document.createElement('div');
     body.className = 'bubble-user';
     body.textContent = text;
@@ -360,7 +408,7 @@ function toggleSidebar() {
 window.switchPanel    = switchPanel;
 window.toggleSidebar  = toggleSidebar;
 
-// ─── Form handlers ───────────────────────────────────────────────────────────
+// ─── Form submit ─────────────────────────────────────────────────────────────
 promptForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = promptInput.value.trim();
@@ -368,7 +416,13 @@ promptForm.addEventListener('submit', (e) => {
 
     createUserBubble(text);
     lastSendTime = Date.now();
-    socket.send(text);
+
+    // Build the JSON frame with the current config values
+    const payload = JSON.stringify({
+        prompt: text,
+        ...getConfig(),
+    });
+    socket.send(payload);
 
     currentAssistantBubble = null;
     currentRawText = '';
