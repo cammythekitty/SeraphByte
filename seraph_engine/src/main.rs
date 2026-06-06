@@ -2,7 +2,6 @@ use candle_core::{Device, Tensor};
 use candle_core::quantized::gguf_file;
 use candle_transformers::generation::LogitsProcessor;
 
-// Import the verified layout decoders
 use candle_transformers::models::quantized_llama;
 use candle_transformers::models::quantized_qwen2;
 
@@ -13,11 +12,12 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::thread;
 
-// Network imports
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
+
+use serde::Deserialize;
 
 // Track the active model architecture on the GPU
 enum ActiveModel {
@@ -25,10 +25,44 @@ enum ActiveModel {
     Qwen(quantized_qwen2::ModelWeights),
 }
 
+// Incoming WebSocket frame from the frontend
+// Either a plain text prompt (legacy) or a JSON object with config
+#[derive(Deserialize, Debug)]
+struct PromptFrame {
+    prompt: String,
+    #[serde(default = "default_temp")]
+    temperature: f64,
+    #[serde(default = "default_topp")]
+    top_p: f64,
+    #[serde(default = "default_max_tokens")]
+    max_tokens: usize,
+    #[serde(default)]
+    system_prompt: Option<String>,
+}
+
+fn default_temp() -> f64 { 0.7 }
+fn default_topp() -> f64 { 0.9 }
+fn default_max_tokens() -> usize { 2048 }
+
 // Commands passed from the WebSocket network stack into the heavy GPU thread
 struct InferenceJob {
-    prompt: String,
-    tx_tokens: mpsc::Sender<String>, // Channel to stream tokens back to the specific network client
+    frame: PromptFrame,
+    fallback_system_prompt: String,
+    tx_tokens: mpsc::Sender<String>,
+}
+
+// Resolve the tokenizer path relative to the binary, falling back to cwd
+fn find_tokenizer_json() -> PathBuf {
+    // Try next to the binary first
+    if let Ok(exe) = std::env::current_exe() {
+        let candidate = exe.parent().unwrap_or(Path::new(".")).join("tokenizer.json");
+        if candidate.exists() { return candidate; }
+    }
+    // Try cwd
+    let cwd_candidate = PathBuf::from("tokenizer.json");
+    if cwd_candidate.exists() { return cwd_candidate; }
+    // Give up with a clear error path so the message is meaningful
+    PathBuf::from("tokenizer.json")
 }
 
 #[tokio::main]
@@ -42,7 +76,7 @@ async fn main() {
     });
     println!("Engine target bound to hardware: {:?}", device);
 
-    // 2. Resolve the ~/Documents/Ai_Models directory path dynamically
+    // 2. Resolve ~/Documents/Ai_Models
     let home_dir = dirs::home_dir().expect("Could not find the system home directory.");
     let models_dir = home_dir.join("Documents").join("Ai_Models");
 
@@ -50,7 +84,7 @@ async fn main() {
         fs::create_dir_all(&models_dir).expect("Failed to create Ai_Models directory.");
     }
 
-    // 3. Scan the folder and collect all .gguf files
+    // 3. Scan for .gguf files
     let gguf_models: Vec<PathBuf> = fs::read_dir(&models_dir)
         .expect("Failed to read models directory")
         .filter_map(|entry| {
@@ -68,7 +102,7 @@ async fn main() {
         return;
     }
 
-    // 4. Display the dynamically generated menu
+    // 4. Display the model menu
     println!("\nDetected Models:");
     for (idx, path) in gguf_models.iter().enumerate() {
         if let Some(file_name) = path.file_name() {
@@ -81,22 +115,24 @@ async fn main() {
 
     let mut choice = String::new();
     io::stdin().read_line(&mut choice).expect("Failed to read selection");
-    
+
     let selection_idx: usize = match choice.trim().parse::<usize>() {
         Ok(num) if num > 0 && num <= gguf_models.len() => num - 1,
         _ => 0,
     };
 
     let selected_model_path = &gguf_models[selection_idx];
-    let file_name_lower = selected_model_path.file_name().unwrap().to_string_lossy().to_lowercase();
+    let file_name_str = selected_model_path
+        .file_name().unwrap().to_string_lossy().to_string();
+    let file_name_lower = file_name_str.to_lowercase();
     println!("Loading weights from: {:?}", selected_model_path);
 
     // 5. Open the binary stream safely
     let mut file = File::open(selected_model_path).unwrap();
     let model_content = gguf_file::Content::read(&mut file)
         .expect("Failed to read GGUF container headers.");
-    
-    // 6. Direct architectures to their corresponding tensor math runners
+
+    // 6. Route architecture
     let mut active_model = if file_name_lower.contains("qwen") || file_name_lower.contains("deepseek") {
         println!("Configuring matrix layers for Qwen/DeepSeek architecture layout...");
         let weights = quantized_qwen2::ModelWeights::from_gguf(model_content, &mut file, &device)
@@ -109,76 +145,98 @@ async fn main() {
         ActiveModel::Llama(weights)
     };
 
-    // 7. Load Companion Tokenizer Layout
-    let tokenizer = Tokenizer::from_file("tokenizer.json")
-        .expect("Failed to load tokenizer.json");
+    // 7. Load tokenizer — search relative to binary, then cwd
+    let tokenizer_path = find_tokenizer_json();
+    println!("Loading tokenizer from: {:?}", tokenizer_path);
+    let tokenizer = Tokenizer::from_file(&tokenizer_path)
+        .expect("Failed to load tokenizer.json — place it next to the binary or in the working directory.");
 
-    // Load System Prompt from Markdown file
+    // 8. Load default system prompt from markdown (used when frontend doesn't send one)
     let system_prompt_path = Path::new("system_prompt.md");
     if !system_prompt_path.exists() {
         let default_prompt = "# System Instructions\nYou are Seraph, a precise and advanced AI assistant.";
         fs::write(system_prompt_path, default_prompt).expect("Failed to create default system_prompt.md");
     }
-    let system_prompt = fs::read_to_string(system_prompt_path)
+    let default_system_prompt = fs::read_to_string(system_prompt_path)
         .expect("Failed to read system_prompt.md")
         .trim()
         .to_string();
-
     println!("Loaded system prompt configuration from system_prompt.md");
 
-    // Create the cross-thread communication tunnel between the GPU loop and Network loop
+    // Broadcast the active model name to every new connection via this shared string
+    let model_name = file_name_str.clone();
+
+    // 9. Cross-thread channel: network → GPU
     let (tx_job, rx_job) = mpsc::channel::<InferenceJob>();
 
-    // 8. Spawn the Heavy GPU Processing Loop inside its own dedicated hardware worker thread
+    // 10. Spawn the GPU worker thread
     thread::spawn(move || {
         println!("GPU Hardware Thread worker active and bound successfully.");
-        let sample_len = 25000;
-        let mut logits_processor = LogitsProcessor::new(299792458, Some(0.7), None);
 
-        // Keep the thread alive, waiting for prompts over the internal channel
         while let Ok(job) = rx_job.recv() {
             println!("GPU executing incoming prompt request...");
-            
-            let formatted_templated_prompt = format!(
+
+            // Prefer system prompt from the frame; fall back to file-loaded default
+            let sys = job.frame.system_prompt
+                .as_deref()
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or(&job.fallback_system_prompt);
+
+            let formatted_prompt = format!(
                 "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
-                system_prompt,
-                job.prompt
+                sys,
+                job.frame.prompt
             );
 
-            let encoding = tokenizer.encode(formatted_templated_prompt, true).expect("Encoding failed");
+            let encoding = tokenizer.encode(formatted_prompt, true).expect("Encoding failed");
             let mut tokens = encoding.get_ids().to_vec();
 
-            // Autoregressive token iteration pass
+            // Build LogitsProcessor from per-request config
+            let top_p = if job.frame.top_p > 0.0 && job.frame.top_p < 1.0 {
+                Some(job.frame.top_p)
+            } else {
+                None
+            };
+            let mut logits_processor = LogitsProcessor::new(
+                299792458,
+                Some(job.frame.temperature),
+                top_p,
+            );
+
+            let sample_len = job.frame.max_tokens;
+
+            // Autoregressive token loop
             for i in 0..sample_len {
                 let context_size = if i == 0 { tokens.len() } else { 1 };
                 let start_pos = tokens.len() - context_size;
-                
+
                 let input_slice = &tokens[start_pos..];
-                let input_tensor = Tensor::new(input_slice, &device).unwrap().unsqueeze(0).unwrap();
-                
+                let input_tensor = Tensor::new(input_slice, &device)
+                    .unwrap().unsqueeze(0).unwrap();
+
                 let logits = match &mut active_model {
                     ActiveModel::Qwen(m) => m.forward(&input_tensor, start_pos).unwrap(),
                     ActiveModel::Llama(m) => m.forward(&input_tensor, start_pos).unwrap(),
                 };
-                
+
                 let logits = logits.squeeze(0).unwrap();
                 let next_token = logits_processor.sample(&logits).unwrap();
-                
+
                 let is_eos = match &active_model {
                     ActiveModel::Qwen(_) => next_token == 151645 || next_token == 151643,
                     ActiveModel::Llama(_) => next_token == 2 || next_token == 1,
                 };
                 if is_eos { break; }
-                
+
                 tokens.push(next_token);
 
                 if let Ok(token_text) = tokenizer.decode(&[next_token], true) {
-                    let clean_text = token_text.replace(" ", " ").replace("<0x0A>", "\n");
-                    
-                    // Drop token straight into the cross-thread network line. 
-                    // Break early if the client has disconnected.
+                    let clean_text = token_text
+                        .replace('\u{2581}', " ")
+                        .replace("<0x0A>", "\n");
+
                     if job.tx_tokens.send(clean_text).is_err() {
-                        break; 
+                        break; // Client disconnected
                     }
                 }
             }
@@ -186,33 +244,60 @@ async fn main() {
         }
     });
 
-    // 9. Boot Non-Standard WebSockets Server to handle network orchestration
-    let port = "8543"; // Safe, non-standard port out of collision range
+    // 11. WebSocket server
+    let port = "8543";
     let addr = format!("127.0.0.1:{}", port);
     let listener = TcpListener::bind(&addr).await.expect("Failed to bind to safe address");
     println!("Engine Socket Gateway listening live on: ws://{}", addr);
 
-    // Accept multiple network connections asynchronously without disrupting the GPU
     while let Ok((stream, _)) = listener.accept().await {
         let tx_job_clone = tx_job.clone();
-        
+        let default_sys_clone = default_system_prompt.clone();
+        let model_name_clone = model_name.clone();
+
         tokio::spawn(async move {
             let ws_stream = accept_async(stream).await;
             if let Ok(mut ws) = ws_stream {
                 println!("New system control socket handshake complete.");
 
+                // Send the model name immediately on connect so the frontend can display it
+                let hello = serde_json::json!({
+                    "type": "model_info",
+                    "model": model_name_clone
+                });
+                let _ = ws.send(Message::Text(hello.to_string())).await;
+
                 while let Some(Ok(msg)) = ws.next().await {
-                    if let Message::Text(prompt_text) = msg {
+                    if let Message::Text(raw) = msg {
+                        // Try to parse as JSON PromptFrame; fall back to plain-text prompt
+                        let frame: PromptFrame = if raw.trim_start().starts_with('{') {
+                            match serde_json::from_str(&raw) {
+                                Ok(f) => f,
+                                Err(e) => {
+                                    eprintln!("Failed to parse JSON frame: {e}");
+                                    continue;
+                                }
+                            }
+                        } else {
+                            // Legacy plain-text: wrap with defaults
+                            PromptFrame {
+                                prompt: raw,
+                                temperature: default_temp(),
+                                top_p: default_topp(),
+                                max_tokens: default_max_tokens(),
+                                system_prompt: None,
+                            }
+                        };
+
                         let (tx_tokens, rx_tokens) = mpsc::channel::<String>();
 
-                        // Package the job description and dispatch it straight into the GPU pipeline
                         let job = InferenceJob {
-                            prompt: prompt_text,
+                            frame,
+                            fallback_system_prompt: default_sys_clone.clone(),
                             tx_tokens,
                         };
-                        
+
                         if tx_job_clone.send(job).is_ok() {
-                            // Listen for raw streamed tokens from the GPU thread and bounce them right over the WebSocket
                             while let Ok(token) = rx_tokens.recv() {
                                 if ws.send(Message::Text(token)).await.is_err() {
                                     break;
