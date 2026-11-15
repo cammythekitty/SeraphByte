@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SeraphByte dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&amp;family=Newsreader:ital,wght@0,400;0,500;1,400&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0e0a0b}
+a{color:#d9b66a}a:hover{color:#f2d58a}
+button{font-family:inherit;cursor:pointer}
+.sb-ol li::marker{color:#d9b66a;font-family:'Cormorant Garamond',serif;font-style:italic}
+@keyframes sb-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.sb-cursor{display:inline-block;width:2px;height:20px;background:#f2d58a;vertical-align:-3px;margin-left:3px;animation:sb-blink 1s steps(1) infinite}
+</style>
+</helmet>
+<div style="min-height: 960px; background: #0e0a0b; color: #f3e9d8; font-family: 'Newsreader', Georgia, serif; display: flex; flex-wrap: wrap; position: relative">
+
+<div aria-hidden="true" style="position: absolute; inset: 14px; border: 1px solid rgba(217,182,106,0.22); pointer-events: none; z-index: 2"></div>
+
+<!-- Index -->
+<aside style="flex: 1 1 280px; max-width: 320px; min-width: 260px; border-right: 1px solid rgba(217,182,106,0.2); padding: 44px 32px 36px; box-sizing: border-box; display: flex; flex-direction: column; gap: 36px">
+<div style="display: flex; align-items: center; gap: 14px">
+<img src="/_blob/f0f5c8c26b6fa334b1a0c77888098905" alt="SeraphByte logo" style="width: 52px; height: 52px; object-fit: cover; object-position: 50% 48%; border: 1px solid rgba(217,182,106,0.4); border-radius: 2px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase">Seraphbyte</span>
+<span style="font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #cdb996">Engine · Gen VI</span>
+</div>
+</div>
+
+<button style="min-height: 44px; border: 1px solid rgba(217,182,106,0.5); border-radius: 0; background: transparent; color: #f2d58a; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase">New conversation</button>
+
+<nav aria-label="Conversations" style="display: flex; flex-direction: column">
+<span style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #cdb996; padding-bottom: 12px">Today</span>
+<a href="#" style="display: flex; align-items: baseline; gap: 14px; padding: 14px 0; min-height: 44px; box-sizing: border-box; border-top: 1px solid rgba(217,182,106,0.18); text-decoration: none; color: #fff4e4">
+<span style="flex: 0 0 22px; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 17px; color: #f2d58a">I.</span>
+<span style="display: flex; flex-direction: column; gap: 3px"><span style="font-size: 16px">Tokenizer decode bug</span><span style="font-size: 12px; color: #cdb996; font-style: italic">open · 12 messages</span></span>
+</a>
+<a href="#" style="display: flex; align-items: baseline; gap: 14px; padding: 14px 0; min-height: 44px; box-sizing: border-box; border-top: 1px solid rgba(217,182,106,0.18); text-decoration: none; color: #cdb996">
+<span style="flex: 0 0 22px; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 17px; color: #b9a58a">II.</span>
+<span style="display: flex; flex-direction: column; gap: 3px"><span style="font-size: 16px">LoRA r=2 run notes</span><span style="font-size: 12px; font-style: italic">31 messages</span></span>
+</a>
+<a href="#" style="display: flex; align-items: baseline; gap: 14px; padding: 14px 0; min-height: 44px; box-sizing: border-box; border-top: 1px solid rgba(217,182,106,0.18); text-decoration: none; color: #cdb996">
+<span style="flex: 0 0 22px; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 17px; color: #b9a58a">III.</span>
+<span style="display: flex; flex-direction: column; gap: 3px"><span style="font-size: 16px">Q2_K export plan</span><span style="font-size: 12px; font-style: italic">8 messages</span></span>
+</a>
+<span style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #cdb996; padding: 26px 0 12px">Earlier</span>
+<a href="#" style="display: flex; align-items: baseline; gap: 14px; padding: 14px 0; min-height: 44px; box-sizing: border-box; border-top: 1px solid rgba(217,182,106,0.18); text-decoration: none; color: #cdb996">
+<span style="flex: 0 0 22px; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 17px; color: #b9a58a">IV.</span>
+<span style="display: flex; flex-direction: column; gap: 3px"><span style="font-size: 16px">Persona fine-tune test</span><span style="font-size: 12px; font-style: italic">19 messages</span></span>
+</a>
+<a href="#" style="display: flex; align-items: baseline; gap: 14px; padding: 14px 0; min-height: 44px; box-sizing: border-box; border-top: 1px solid rgba(217,182,106,0.18); border-bottom: 1px solid rgba(217,182,106,0.18); text-decoration: none; color: #cdb996">
+<span style="flex: 0 0 22px; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 17px; color: #b9a58a">V.</span>
+<span style="display: flex; flex-direction: column; gap: 3px"><span style="font-size: 16px">Dashboard websocket drops</span><span style="font-size: 12px; font-style: italic">6 messages</span></span>
+</a>
+</nav>
+
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 14px">
+<span style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #cdb996">Models</span>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px">
+<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0l5 5-5 5-5-5z" fill="{{accent}}"></path></svg>
+<span style="font-size: 16px">mistral-7b-instruct-v0.3</span>
+</div>
+<span style="padding-left: 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #cdb996">Q2_K · GGUF · loaded</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; color: #cdb996">
+<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 .7l4.3 4.3-4.3 4.3-4.3-4.3z" fill="none" stroke="currentColor"></path></svg>
+<span style="font-size: 16px">Qwen2.5-Coder-7B-Instruct</span>
+</div>
+<span style="padding-left: 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #b9a58a">LoRA adapter · not loaded</span>
+</div>
+</div>
+</aside>
+
+<!-- Chat -->
+<main style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; position: relative; overflow: hidden">
+<img src="/_blob/f0f5c8c26b6fa334b1a0c77888098905" alt="" aria-hidden="true" style="position: absolute; left: 50%; top: 46%; width: 760px; max-width: 120%; transform: translate(-50%, -50%); opacity: 0.06; pointer-events: none">
+<div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 0; height: 380px; background: radial-gradient(ellipse at 50% 0%, rgba(255,160,70,0.13), transparent 65%); pointer-events: none"></div>
+
+<header style="position: relative; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 44px 56px 22px; border-bottom: 1px solid rgba(217,182,106,0.2)">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #cdb996">Conversation I</span>
+<h1 style="margin: 0; font-family: 'Cormorant Garamond', serif; font-size: 34px; font-weight: 600; line-height: 1.1">Tokenizer decode bug</h1>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #cdb996">mistral-7b-instruct-v0.3 · Q2_K · streaming over WebSocket</span>
+</div>
+<div style="display: flex; align-items: center; gap: 24px">
+<button style="min-height: 44px; padding: 0; border: none; border-bottom: 1px solid rgba(217,182,106,0.5); background: transparent; color: #f3e9d8; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase">Export</button>
+<button style="min-height: 44px; padding: 0; border: none; border-bottom: 1px solid rgba(217,182,106,0.5); background: transparent; color: #f3e9d8; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase">Clear</button>
+</div>
+</header>
+
+<div style="position: relative; flex: 1; padding: 48px 56px 32px; display: flex; flex-direction: column; gap: 36px; max-width: 800px; width: 100%; box-sizing: border-box; margin: 0 auto">
+
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #cdb996">You</span>
+<p style="margin: 0; font-size: 19px; line-height: 1.65; font-style: italic; color: #f0e2cc">Decoded output has no spaces between words. Tokens look right, the text just runs together. Where should I look?</p>
+</div>
+
+<div aria-hidden="true" style="display: flex; align-items: center; gap: 14px">
+<div style="flex: 1; height: 1px; background: rgba(217,182,106,0.25)"></div>
+<svg width="9" height="9" viewBox="0 0 10 10"><path d="M5 0l5 5-5 5-5-5z" fill="{{accent}}"></path></svg>
+<div style="flex: 1; height: 1px; background: rgba(217,182,106,0.25)"></div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 16px">
+<span style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: {{accent}}">Seraph</span>
+<p style="margin: 0; font-size: 19px; line-height: 1.7">SentencePiece-style vocabularies mark a word start with the <code style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #f2d58a">▁</code> prefix. If that character is stripped instead of mapped to a space, words glue together. Two places to check:</p>
+<ol class="sb-ol" style="margin: 0; padding-left: 26px; display: flex; flex-direction: column; gap: 8px; font-size: 19px; line-height: 1.65">
+<li>Whether <code style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #f2d58a">skip_special_tokens</code> drops tokens that carry the marker.</li>
+<li>Whether decode converts each piece before joining, not after.</li>
+</ol>
+<div style="border: 1px solid rgba(217,182,106,0.28); background: #0a0708">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 16px; border-bottom: 1px solid rgba(217,182,106,0.2)">
+<span style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #cdb996">Rust</span>
+<button style="min-height: 44px; padding: 0; border: none; background: transparent; color: #f2d58a; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase">Copy</button>
+</div>
+<pre style="margin: 0; padding: 16px 18px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.7; color: #f3e9d8">let piece = vocab.id_to_piece(id);
+out.push_str(&amp;piece.replace('▁', " "));</pre>
+</div>
+<p style="margin: 0; font-size: 19px; line-height: 1.7">Map first, then concatenate<span class="sb-cursor"></span></p>
+</div>
+
+</div>
+
+<!-- Composer -->
+<div style="position: relative; padding: 0 56px 52px; max-width: 800px; width: 100%; box-sizing: border-box; margin: 0 auto">
+<div style="display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid rgba(217,182,106,0.35)">
+<label for="sb-input" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Message SeraphByte</label>
+<textarea id="sb-input" rows="2" placeholder="Speak to the engine" style="width: 100%; box-sizing: border-box; resize: none; border: none; outline: none; background: transparent; color: #f3e9d8; font-family: 'Newsreader', Georgia, serif; font-size: 19px; line-height: 1.55"></textarea>
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #cdb996">temp 0.7 · top-p 0.9 · max 512</span>
+<div style="display: flex; align-items: center; gap: 22px">
+<button style="min-height: 44px; padding: 0; border: none; background: transparent; color: #cdb996; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase">Stop</button>
+<button style="min-height: 44px; padding: 0 28px; border: none; border-radius: 0; background: {{accent}}; color: #0e0a0b; font-size: 12px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase">Send</button>
+</div>
+</div>
+</div>
+</div>
+</main><aside style="flex: 1 1 320px; max-width: 360px; min-width: 280px; border-left: 1px solid rgba(217,182,106,0.2); padding: 44px 32px 36px; box-sizing: border-box; display: flex; flex-direction: column; gap: 34px">
+
+<div style="display: flex; align-items: center; justify-content: space-between">
+<h2 style="margin: 0; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #cdb996; font-weight: 500">Engine</h2>
+<span style="display: inline-flex; align-items: center; gap: 10px; font-size: 14px; font-style: italic">
+<svg width="9" height="9" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0l5 5-5 5-5-5z" fill="#f2d58a"></path></svg>
+connected
+</span>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 500; line-height: 1">14.2</span>
+<span style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #cdb996">tokens / sec</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 500; line-height: 1">0.8<span style="font-size: 24px; color: #cdb996"> s</span></span>
+<span style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #cdb996">first token</span>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 22px">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: baseline; gap: 10px"><span style="font-size: 16px">VRAM</span><span style="flex: 1; border-bottom: 1px dotted rgba(217,182,106,0.4)"></span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #f3e9d8">3.4 / 4.0 GB</span></div>
+<div style="height: 3px; background: rgba(217,182,106,0.18)"><div style="width: 85%; height: 100%; background: linear-gradient(90deg,#f2d58a,#ff9a4a)"></div></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: baseline; gap: 10px"><span style="font-size: 16px">Context</span><span style="flex: 1; border-bottom: 1px dotted rgba(217,182,106,0.4)"></span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #f3e9d8">1,284 / 4,096</span></div>
+<div style="height: 3px; background: rgba(217,182,106,0.18)"><div style="width: 31%; height: 100%; background: #e6d3b0"></div></div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 18px; padding-top: 28px; border-top: 1px solid rgba(217,182,106,0.2)">
+<h2 style="margin: 0; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #cdb996; font-weight: 500">Sampling</h2>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="sb-temp" style="display: flex; align-items: baseline; gap: 10px; font-size: 16px"><span>Temperature</span><span style="flex: 1; border-bottom: 1px dotted rgba(217,182,106,0.4)"></span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px">0.7</span></label>
+<input id="sb-temp" type="range" min="0" max="2" step="0.1" value="0.7" style="width: 100%; accent-color: #d9b66a">
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="sb-topp" style="display: flex; align-items: baseline; gap: 10px; font-size: 16px"><span>Top-p</span><span style="flex: 1; border-bottom: 1px dotted rgba(217,182,106,0.4)"></span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px">0.9</span></label>
+<input id="sb-topp" type="range" min="0" max="1" step="0.05" value="0.9" style="width: 100%; accent-color: #d9b66a">
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="sb-max" style="display: flex; align-items: baseline; gap: 10px; font-size: 16px"><span>Max tokens</span><span style="flex: 1; border-bottom: 1px dotted rgba(217,182,106,0.4)"></span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px">512</span></label>
+<input id="sb-max" type="range" min="64" max="2048" step="64" value="512" style="width: 100%; accent-color: #d9b66a">
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 14px; padding-top: 28px; border-top: 1px solid rgba(217,182,106,0.2)">
+<h2 style="margin: 0; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #cdb996; font-weight: 500">Lineage</h2>
+<div style="display: flex; align-items: flex-end; justify-content: space-between; height: 64px; padding: 0 6px">
+<div style="width: 2px; height: 14px; background: #6b5a44"></div>
+<div style="width: 2px; height: 22px; background: #85715a"></div>
+<div style="width: 2px; height: 30px; background: #a08b70"></div>
+<div style="width: 2px; height: 38px; background: #bba58c"></div>
+<div style="width: 2px; height: 46px; background: #d6c2a8"></div>
+<div style="width: 3px; height: 64px; background: linear-gradient(0deg,#ff9a4a,#f2d58a 60%,#fff3c8); box-shadow: 0 0 16px rgba(255,170,80,0.5)"></div>
+</div>
+<div style="display: flex; justify-content: space-between; padding: 0 2px; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 15px; color: #cdb996"><span>I</span><span>II</span><span>III</span><span>IV</span><span>V</span><span style="color: #f2d58a">VI</span></div>
+<span style="font-size: 14px; color: #cdb996; font-style: italic; line-height: 1.5">Rust, Candle. Built to carry what came before.</span>
+</div>
+</aside>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#d9b66a","options":["#d9b66a","#f2d58a","#ff9a4a","#fff3c8"]},"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#d9b66a' };
+}
+}
+</script>
+</body>
+</html>

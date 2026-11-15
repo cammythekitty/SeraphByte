@@ -1,21 +1,19 @@
 [package]
 name = "seraph_engine"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Cammy"]
-description = "High-performance async LLM inference backend for SeraphByte"
+description = "SeraphByte: local LLM inference engine with a desktop interface"
 
 [dependencies]
-tokio = { version = "1.40", features = ["full"] }
 candle-core = { git = "https://github.com/huggingface/candle", branch = "main", features = ["cuda"] }
 candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main" }
 candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", features = ["cuda"] }
-tokenizers = "0.23"
 dirs = "5.0"
-tokio-tungstenite = "0.23"
-futures-util = "0.3"
-serde = { version = "1.0", features = ["derive"] }
+tungstenite = "0.23"
 serde_json = "1.0"
-
-[patch.crates-io]
-cudarc = { git = "https://github.com/coreylowman/cudarc.git" }
+tokenizers = { version = "0.23", default-features = false, features = ["onig"] }
+cudarc = "0.19.10"
+wry = "0.53"
+tao = "0.34"
+tracing = "0.1"

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SeraphByte</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="theme.css">
+<script src="vendor/marked.min.js" defer></script>
+<script src="vendor/purify.min.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="frame" aria-hidden="true"></div>
+
+<div class="app">
+
+  <!-- Index -->
+  <aside class="index" aria-label="Conversations">
+    <div class="brand">
+      <img class="brand-mark" src="logo.svg" alt="SeraphByte logo" width="52" height="52">
+      <div class="brand-text">
+        <span class="brand-name">Seraphbyte</span>
+        <span class="label">Engine · Gen VI</span>
+      </div>
+    </div>
+
+    <button type="button" class="btn-outline" id="new-chat">New conversation</button>
+
+    <nav class="sessions" id="sessions" aria-label="Conversation list"></nav>
+
+    <div class="model-block">
+      <div class="model-head">
+        <span class="label">Models</span>
+        <button type="button" class="btn-mini device-toggle" id="device-toggle" aria-label="Device to load models on">Load on CUDA</button>
+      </div>
+      <div class="model-list" id="model-list" role="list"></div>
+      <span class="mono small muted model-status" id="model-status" role="status">waiting for engine</span>
+    </div>
+  </aside>
+
+  <!-- Chat -->
+  <main class="chat">
+    <div class="glow" aria-hidden="true"></div>
+
+    <header class="chat-head">
+      <div class="chat-title">
+        <span class="label" id="conv-label">Conversation I</span>
+        <h1 id="conv-title">New conversation</h1>
+        <span class="mono small muted" id="conv-sub">ws://127.0.0.1:8543</span>
+      </div>
+      <div class="chat-actions">
+        <button type="button" class="btn-text" id="export-btn">Export</button>
+        <button type="button" class="btn-text" id="clear-btn">Clear</button>
+      </div>
+    </header>
+
+    <div class="log-wrap">
+      <img class="watermark" src="logo.svg" alt="" aria-hidden="true">
+      <div class="log" id="log" role="log" aria-label="Conversation" aria-live="off"></div>
+      <div class="empty" id="empty">
+        <img src="logo.svg" alt="" aria-hidden="true">
+        <p>Speak to the engine.</p>
+        <span class="mono small muted">Each message is answered on its own. The model does not see earlier turns yet.</span>
+      </div>
+    </div>
+
+    <form class="composer" id="composer" autocomplete="off">
+      <label for="input" class="sr-only">Message SeraphByte</label>
+      <textarea id="input" rows="2" placeholder="Speak to the engine"></textarea>
+      <div class="composer-row">
+        <span class="mono small muted" id="param-line">temp 0.7 · top-p 0.9 · max 512</span>
+        <div class="composer-buttons">
+          <button type="button" class="btn-quiet" id="stop-btn" disabled>Stop</button>
+          <button type="submit" class="btn-solid" id="send-btn" disabled>Send</button>
+        </div>
+      </div>
+    </form>
+  </main>
+
+  <!-- Engine ledger -->
+  <aside class="ledger" aria-label="Engine">
+    <section class="ledger-section">
+      <div class="ledger-head">
+        <h2 class="label">Engine</h2>
+        <span class="status" id="status" role="status">
+          <svg class="diamond" width="9" height="9" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 .7l4.3 4.3-4.3 4.3-4.3-4.3z"/></svg>
+          <span id="status-text">connecting</span>
+        </span>
+      </div>
+
+      <div class="numerals">
+        <div class="numeral">
+          <span class="big" id="tps">–</span>
+          <span class="label">tokens / sec</span>
+        </div>
+        <div class="numeral">
+          <span class="big"><span id="ttft">–</span><span class="unit"> s</span></span>
+          <span class="label">first token</span>
+        </div>
+      </div>
+
+      <div class="rows">
+        <div class="row-bar">
+          <div class="row"><span>Context</span><span class="leader"></span><span class="mono" id="ctx-val">0 / 8,192</span></div>
+          <div class="bar"><div class="bar-fill" id="ctx-fill"></div></div>
+          <span class="note" id="ctx-note">Last turn only. Estimated until the engine reports a count.</span>
+        </div>
+        <div class="row"><span>Device</span><span class="leader"></span><span class="mono" id="dev-val">–</span></div>
+        <div class="row"><span>Architecture</span><span class="leader"></span><span class="mono" id="arch-val">–</span></div>
+      </div>
+    </section>
+
+    <section class="ledger-section ruled">
+      <div class="ledger-head">
+        <h2 class="label">Sampling</h2>
+        <button type="button" class="btn-mini" id="sampling-reset">Reset</button>
+      </div>
+      <div class="slider">
+        <label for="temp" class="row"><span>Temperature</span><span class="leader"></span><span class="mono" id="temp-val">0.7</span></label>
+        <input id="temp" type="range" min="0" max="2" step="0.05" value="0.7">
+      </div>
+      <div class="slider">
+        <label for="topp" class="row"><span>Top-p</span><span class="leader"></span><span class="mono" id="topp-val">0.9</span></label>
+        <input id="topp" type="range" min="0" max="1" step="0.05" value="0.9">
+      </div>
+      <div class="slider">
+        <label for="maxtok" class="row"><span>Max tokens</span><span class="leader"></span><span class="mono" id="maxtok-val">512</span></label>
+        <input id="maxtok" type="range" min="64" max="4096" step="64" value="512">
+      </div>
+      <p class="note warn-note" id="sampling-warn" hidden></p>
+    </section>
+
+    <section class="ledger-section ruled">
+      <label for="sysprompt"><h2 class="label">System prompt</h2></label>
+      <textarea id="sysprompt" rows="5" placeholder="Leave empty to use the engine's system_prompt.md"></textarea>
+    </section>
+
+    <section class="ledger-section ruled">
+      <h2 class="label">Pinned</h2>
+      <ul class="pins" id="pins"></ul>
+    </section>
+
+    <section class="ledger-section ruled">
+      <h2 class="label">Lineage</h2>
+      <div class="lineage" aria-hidden="true">
+        <i style="height:14px"></i><i style="height:22px"></i><i style="height:30px"></i><i style="height:38px"></i><i style="height:46px"></i><i class="now" style="height:64px"></i>
+      </div>
+      <div class="lineage-labels" aria-hidden="true"><span>I</span><span>II</span><span>III</span><span>IV</span><span>V</span><span class="now">VI</span></div>
+      <p class="note">Rust, Candle. Built to carry what came before.</p>
+    </section>
+  </aside>
+
+</div>
+</body>
+</html>
